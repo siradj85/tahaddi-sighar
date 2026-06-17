@@ -49,7 +49,7 @@ jobs:
             echo "generated=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: بناء التطبيق (AAB + APK تجريبي)
+      - name: بناء التطبيق (AAB + APK موقّع)
         env:
           KEYSTORE_FILE: ${{ runner.temp }}/upload.jks
           KEYSTORE_PASSWORD: ${{ env.STORE_PW }}
@@ -57,7 +57,7 @@ jobs:
           KEY_PASSWORD: ${{ env.KEY_PW }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug bundleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
 
       - name: رفع ملف AAB (للرفع على Google Play)
         uses: actions/upload-artifact@v4
@@ -65,11 +65,11 @@ jobs:
           name: aab-للنشر-على-جوجل-بلاي
           path: app/build/outputs/bundle/release/*.aab
 
-      - name: رفع APK التجريبي (للتثبيت على الهاتف مباشرة)
+      - name: رفع APK الموقّع (للتثبيت على الهاتف — يقبل التحديثات)
         uses: actions/upload-artifact@v4
         with:
-          name: apk-تجريبي-للتثبيت
-          path: app/build/outputs/apk/debug/*.apk
+          name: apk-موقّع-للتثبيت
+          path: app/build/outputs/apk/release/*.apk
 
       - name: رفع مفتاح التوقيع الجديد (احتفظ به جيداً!)
         if: steps.keystore.outputs.generated == 'true'

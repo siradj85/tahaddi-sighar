@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -157,6 +158,21 @@ fun QuizScreen(vm: GameViewModel) {
     val q = vm.current ?: return
     val stage = vm.currentStage ?: return
 
+    // ----- المؤقّت الزمني لكل سؤال -----
+    val totalTime = vm.secondsPerQuestion
+    var timeLeft by remember(vm.qIndex, vm.currentStageIndex) { mutableIntStateOf(totalTime) }
+    LaunchedEffect(vm.qIndex, vm.currentStageIndex, vm.answered) {
+        if (!vm.answered) {
+            timeLeft = totalTime
+            while (timeLeft > 0 && !vm.answered) {
+                delay(1000)
+                if (!vm.answered) timeLeft -= 1
+            }
+            if (timeLeft <= 0 && !vm.answered) vm.timeUp()
+        }
+    }
+    val timeColor = if (timeLeft <= 5) Color(0xFFFF5252) else Gold
+
     Box(Modifier.fillMaxSize().background(bg()).padding(20.dp)) {
         Column(Modifier.fillMaxSize()) {
             // الشريط العلوي: المرحلة + القلوب
@@ -175,6 +191,19 @@ fun QuizScreen(vm: GameViewModel) {
                         )
                     }
                 }
+            }
+            Spacer(Modifier.height(10.dp))
+            // المؤقّت الزمني
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Timer, contentDescription = null, tint = timeColor, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(6.dp))
+                LinearProgressIndicator(
+                    progress = { timeLeft.toFloat() / totalTime },
+                    modifier = Modifier.weight(1f).height(10.dp),
+                    color = timeColor, trackColor = Color(0x33FFFFFF)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("$timeLeft ث", color = timeColor, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -258,6 +287,7 @@ private fun OptionButton(text: String, state: OptionVisual, onClick: () -> Unit)
 // ===================== اجتياز مرحلة =====================
 @Composable
 fun StageClearScreen(vm: GameViewModel) {
+    val activity = LocalContext.current as Activity
     Box(Modifier.fillMaxSize().background(bg()), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(28.dp)) {
             Text("🎉", fontSize = 96.sp)
@@ -271,9 +301,13 @@ fun StageClearScreen(vm: GameViewModel) {
             }
             Spacer(Modifier.height(16.dp))
             Text("النقاط الكلية: ${vm.totalScore}", fontSize = 20.sp, color = Color(0xFFFFE082))
-            Spacer(Modifier.height(36.dp))
+            Spacer(Modifier.height(32.dp))
             BigButton("المرحلة التالية ←") { vm.nextStage() }
             Spacer(Modifier.height(10.dp))
+            BigButton("📤 شارك تقدّمي", container = Color(0xFF9C27B0), textColor = Color.White) {
+                ShareCard.shareProgress(activity, vm.currentStageIndex + 1, vm.totalStages, vm.totalScore)
+            }
+            Spacer(Modifier.height(8.dp))
             TextButton(onClick = { vm.goHome() }) { Text("الرئيسية", color = Color.White, fontSize = 17.sp) }
         }
         Confetti(Modifier.fillMaxSize())
@@ -301,7 +335,7 @@ fun GameOverScreen(vm: GameViewModel) {
 @Composable
 fun FinishedScreen(vm: GameViewModel) {
     val activity = LocalContext.current as Activity
-    val total = vm.totalStages * GameViewModel.QUESTIONS_PER_STAGE
+    val total = vm.totalQuestions
     Box(Modifier.fillMaxSize().background(bg()), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(28.dp)) {
             Text("🏆", fontSize = 100.sp)

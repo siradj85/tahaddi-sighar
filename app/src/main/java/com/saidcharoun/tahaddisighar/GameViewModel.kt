@@ -19,10 +19,13 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         const val QUESTIONS_PER_STAGE = 5
         const val MAX_LIVES = 3
         val STAGE_TITLES = listOf(
-            "الانطلاق 🚀", "الإحماء 🔥", "التحدّي 💪",
-            "المهارة ⚡", "الخبراء 🧠", "البطولة 👑"
+            "الانطلاق 🚀", "المغامرة 🌟", "الاستكشاف 🔍", "التحدّي 💪", "العباقرة 🧠",
+            "الأبطال 🦸", "الصاعقة ⚡", "الكنز 💎", "النجوم ✨", "البطولة 👑"
         )
     }
+
+    /** المدة المسموحة لكل سؤال بالثواني (أطول للصغار). */
+    val secondsPerQuestion: Int get() = if (ageGroup == AgeGroup.YOUNG) 18 else 12
 
     // ---------- الحالة ----------
     var screen by mutableStateOf(Screen.HOME); private set
@@ -51,6 +54,7 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
     val currentStage: Stage? get() = stages.getOrNull(currentStageIndex)
     val current: Question? get() = currentStage?.questions?.getOrNull(qIndex)
     val totalStages: Int get() = stages.size
+    val totalQuestions: Int get() = stages.sumOf { it.questions.size }
 
     fun hasSavedGame(): Boolean = prefs.getInt("save_stage", -1) >= 0
 
@@ -121,6 +125,20 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** يُستدعى عند انتهاء وقت السؤال: يُحتسب خطأً بلا اختيار. */
+    fun timeUp() {
+        if (answered) return
+        answered = true
+        selectedIndex = null
+        lives -= 1
+        if (lives <= 0) {
+            stageFailed = true
+            SoundManager.wrong()
+        } else {
+            SoundManager.wrong()
+        }
+    }
+
     fun next() {
         val stage = currentStage ?: return
         if (stageFailed) {
@@ -188,7 +206,7 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         return ordered.chunked(QUESTIONS_PER_STAGE)
             .filter { it.size >= 3 } // تجاهل مرحلة ناقصة جداً
             .mapIndexed { i, qs ->
-                val title = STAGE_TITLES.getOrElse(i) { "مرحلة ${i + 1}" }
+                val title = STAGE_TITLES[i % STAGE_TITLES.size]
                 Stage(number = i + 1, title = title, questions = qs)
             }
     }
