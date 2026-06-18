@@ -9,6 +9,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -124,28 +126,29 @@ fun AgeScreen(vm: GameViewModel) {
     Box(Modifier.fillMaxSize().background(bg())) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.align(Alignment.Center).padding(28.dp)
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)
         ) {
-            Text("كم عمر اللاعب؟", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(16.dp))
+            Text("اختر الفئة العمرية", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(Modifier.height(20.dp))
             AgeGroup.entries.forEach { group ->
                 Card(
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp).height(110.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).height(96.dp)
                         .clickable { SoundManager.click(); vm.selectAge(group) }
                 ) {
                     Row(
                         Modifier.fillMaxSize().padding(horizontal = 24.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(group.emoji, fontSize = 56.sp)
+                        Text(group.emoji, fontSize = 48.sp)
                         Spacer(Modifier.width(20.dp))
-                        Text(group.label, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = DeepPurple)
+                        Text(group.label, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = DeepPurple)
                     }
                 }
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
             TextButton(onClick = { vm.goHome() }) { Text("رجوع", color = Color.White, fontSize = 18.sp) }
         }
     }

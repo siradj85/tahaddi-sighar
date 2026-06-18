@@ -24,8 +24,14 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    /** المدة المسموحة لكل سؤال بالثواني (أطول للصغار). */
-    val secondsPerQuestion: Int get() = if (ageGroup == AgeGroup.YOUNG) 18 else 12
+    /** المدة المسموحة لكل سؤال بالثواني (أطول للصغار، أقصر للأكبر). */
+    val secondsPerQuestion: Int
+        get() = when (ageGroup) {
+            AgeGroup.YOUNG -> 18
+            AgeGroup.OLDER -> 14
+            AgeGroup.NINE_TWELVE -> 12
+            AgeGroup.FAMILY -> 10
+        }
 
     // ---------- الحالة ----------
     var screen by mutableStateOf(Screen.HOME); private set

@@ -20,5 +20,7 @@ data class Question(
 
 enum class AgeGroup(val code: Int, val label: String, val emoji: String) {
     YOUNG(1, "٣ - ٥ سنوات", "🧸"),
-    OLDER(2, "٦ - ٨ سنوات", "🎒")
+    OLDER(2, "٦ - ٨ سنوات", "🎒"),
+    NINE_TWELVE(3, "٩ - ١٢ سنة", "📚"),
+    FAMILY(4, "العائلة والكبار", "🧠")
 }
