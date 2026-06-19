@@ -6,8 +6,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlin.random.Random
 
-enum class Screen { HOME, AGE, QUIZ, STAGE_CLEAR, GAME_OVER, FINISHED }
+enum class Screen { HOME, AGE, QUIZ, STAGE_CLEAR, GAME_OVER, FINISHED, DAILY_CHALLENGE }
 
 data class Stage(val number: Int, val title: String, val questions: List<Question>)
 
@@ -18,16 +21,14 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         const val QUESTIONS_PER_STAGE = 5
         const val MAX_LIVES = 3
-        // أقصى عدد أسئلة تُسحب عشوائياً من كل مستوى صعوبة في كل جولة
-        // (مع كبر البنك عن بُعد تصبح كل جولة عيّنة مختلفة = يستحيل الحفظ)
         const val SAMPLE_PER_TIER = 40
+        const val DAILY_QUESTION_COUNT = 10
         val STAGE_TITLES = listOf(
             "الانطلاق 🚀", "المغامرة 🌟", "الاستكشاف 🔍", "التحدّي 💪", "العباقرة 🧠",
             "الأبطال 🦸", "الصاعقة ⚡", "الكنز 💎", "النجوم ✨", "البطولة 👑"
         )
     }
 
-    /** المدة المسموحة لكل سؤال بالثواني (أطول للصغار، أقصر للأكبر). */
     val secondsPerQuestion: Int
         get() = when (ageGroup) {
             AgeGroup.YOUNG -> 18
@@ -56,6 +57,10 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
     var bestScore by mutableIntStateOf(prefs.getInt("best", 0)); private set
     var soundOn by mutableStateOf(prefs.getBoolean("sound", true)); private set
 
+    var coinBalance by mutableIntStateOf(CoinManager.getBalance(app)); private set
+    var isDailyChallenge by mutableStateOf(false); private set
+    var dailyCompleted by mutableStateOf(false); private set
+
     init {
         SoundManager.enabled = soundOn
     }
@@ -69,10 +74,98 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
 
     fun savedStageNumber(): Int = prefs.getInt("save_stage", 0) + 1
 
+    // ---------- العملات ----------
+    private fun refreshCoinBalance() {
+        coinBalance = CoinManager.getBalance(getApplication())
+    }
+
+    fun earnCorrectCoin() {
+        CoinManager.addCoins(getApplication(), 1)
+        refreshCoinBalance()
+    }
+
+    fun earnAdCoin() {
+        CoinManager.addCoins(getApplication(), 5)
+        refreshCoinBalance()
+    }
+
+    fun buyExtraLife(): Boolean {
+        if (lives >= MAX_LIVES) return false
+        if (!CoinManager.spendCoins(getApplication(), 10)) return false
+        lives += 1
+        refreshCoinBalance()
+        return true
+    }
+
+    fun buyHint(): Boolean {
+        if (fiftyUsed || answered) return false
+        if (!CoinManager.spendCoins(getApplication(), 5)) return false
+        val q = current ?: return false
+        val toRemove = if (q.options.size <= 3) 1 else 2
+        val wrong = q.options.indices.filter { it != q.correctIndex }.shuffled().take(toRemove)
+        hiddenOptions = wrong.toSet()
+        fiftyUsed = true
+        return true
+    }
+
+    // ---------- التحدّي اليومي ----------
+    fun canPlayDaily(): Boolean {
+        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+        return CoinManager.getDailyDate(getApplication()) != today
+    }
+
+    fun startDailyChallenge() {
+        isDailyChallenge = true
+        dailyCompleted = false
+        ageGroup = AgeGroup.FAMILY
+        val pool = QuestionRepository.load(getApplication())
+        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+        val seed = today.toLongOrNull() ?: 20250101L
+        val rng = Random(seed)
+
+        // Pick questions distributed across age groups and difficulties
+        val dailyQuestions = mutableListOf<Question>()
+        val ages = listOf(1, 2, 3, 4)
+        val difficulties = listOf(1, 2, 3)
+        val perBucket = DAILY_QUESTION_COUNT / (ages.size * difficulties.size) + 1
+
+        for (age in ages) {
+            for (d in difficulties) {
+                val candidates = pool.filter { it.age == age && it.difficulty == d }
+                val shuffled = candidates.shuffled(rng)
+                dailyQuestions.addAll(shuffled.take(perBucket))
+            }
+        }
+
+        val finalQuestions = dailyQuestions.shuffled(rng).take(DAILY_QUESTION_COUNT)
+            .map { it.withShuffledOptions() }
+
+        stages = listOf(
+            Stage(number = 1, title = "التحدّي اليومي 🌟", questions = finalQuestions)
+        )
+        currentStageIndex = 0
+        totalScore = 0
+        startStage()
+        screen = Screen.QUIZ
+    }
+
+    fun completeDailyChallenge() {
+        dailyCompleted = true
+        val today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+        CoinManager.setDailyDate(getApplication(), today)
+        // Bonus 3 coins for completing the daily challenge
+        CoinManager.addCoins(getApplication(), 3)
+        refreshCoinBalance()
+    }
+
     // ---------- التنقل ----------
     fun openAgeSelect() { screen = Screen.AGE }
 
-    fun goHome() { screen = Screen.HOME }
+    fun goHome() {
+        screen = Screen.HOME
+        isDailyChallenge = false
+        dailyCompleted = false
+    }
 
     fun toggleSound() {
         soundOn = !soundOn
@@ -85,6 +178,7 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         stages = buildStages(group.code)
         currentStageIndex = 0
         totalScore = 0
+        isDailyChallenge = false
         startStage()
     }
 
@@ -94,6 +188,7 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         stages = buildStages(ageGroup.code)
         currentStageIndex = prefs.getInt("save_stage", 0).coerceIn(0, (stages.size - 1).coerceAtLeast(0))
         totalScore = prefs.getInt("save_score", 0)
+        isDailyChallenge = false
         startStage()
     }
 
@@ -106,12 +201,13 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         hiddenOptions = emptySet()
         fiftyUsed = false
         stageFailed = false
-        // حفظ نقطة الاستئناف
-        prefs.edit()
-            .putInt("save_age", ageGroup.code)
-            .putInt("save_stage", currentStageIndex)
-            .putInt("save_score", totalScore)
-            .apply()
+        if (!isDailyChallenge) {
+            prefs.edit()
+                .putInt("save_age", ageGroup.code)
+                .putInt("save_stage", currentStageIndex)
+                .putInt("save_score", totalScore)
+                .apply()
+        }
         screen = Screen.QUIZ
     }
 
@@ -122,6 +218,7 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         if (optionIndex == current?.correctIndex) {
             stageScore += 1
             totalScore += 1
+            earnCorrectCoin()
             SoundManager.correct()
         } else {
             lives -= 1
@@ -134,7 +231,6 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** يُستدعى عند انتهاء وقت السؤال: يُحتسب خطأً بلا اختيار. */
     fun timeUp() {
         if (answered) return
         answered = true
@@ -151,7 +247,6 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
     fun next() {
         val stage = currentStage ?: return
         if (stageFailed) {
-            // نفدت القلوب → إعادة المرحلة
             screen = Screen.GAME_OVER
             return
         }
@@ -162,11 +257,13 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
             hiddenOptions = emptySet()
             fiftyUsed = false
         } else {
-            // اكتملت المرحلة بنجاح
             saveBestIfNeeded()
             SoundManager.win()
-            if (currentStageIndex + 1 >= stages.size) {
-                prefs.edit().putInt("save_stage", -1).apply() // أنهى اللعبة
+            if (isDailyChallenge) {
+                completeDailyChallenge()
+                screen = Screen.FINISHED
+            } else if (currentStageIndex + 1 >= stages.size) {
+                prefs.edit().putInt("save_stage", -1).apply()
                 screen = Screen.FINISHED
             } else {
                 screen = Screen.STAGE_CLEAR
@@ -174,15 +271,13 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** الانتقال للمرحلة التالية بعد شاشة النجاح. */
     fun nextStage() {
         currentStageIndex += 1
         startStage()
     }
 
-    /** إعادة المرحلة الحالية بعد نفاد القلوب. */
     fun retryStage() {
-        totalScore -= stageScore // إلغاء نقاط هذه المرحلة الفاشلة
+        totalScore -= stageScore
         if (totalScore < 0) totalScore = 0
         startStage()
     }
@@ -197,13 +292,13 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun saveBestIfNeeded() {
+        if (isDailyChallenge) return
         if (totalScore > bestScore) {
             bestScore = totalScore
             prefs.edit().putInt("best", totalScore).apply()
         }
     }
 
-    /** يُعيد نسخة من السؤال بترتيب خيارات مخلوط (لمنع حفظ موقع الإجابة الصحيحة). */
     private fun Question.withShuffledOptions(): Question {
         val idx = options.indices.shuffled()
         return copy(
@@ -212,17 +307,13 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    /**
-     * يبني المراحل من عيّنة عشوائية لكل مستوى صعوبة (سهل ثم متوسط ثم صعب)،
-     * مأخوذة من المصدر عن بُعد. كل جولة عيّنة مختلفة وخياراتها مخلوطة.
-     */
     private fun buildStages(age: Int): List<Stage> {
         val pool = QuestionRepository.load(getApplication()).filter { it.age == age }
         fun pick(d: Int) = pool.filter { it.difficulty == d }.shuffled().take(SAMPLE_PER_TIER)
         val ordered = (pick(1) + pick(2) + pick(3)).map { it.withShuffledOptions() }
 
         return ordered.chunked(QUESTIONS_PER_STAGE)
-            .filter { it.size >= 3 } // تجاهل مرحلة ناقصة جداً
+            .filter { it.size >= 3 }
             .mapIndexed { i, qs ->
                 Stage(number = i + 1, title = STAGE_TITLES[i % STAGE_TITLES.size], questions = qs)
             }
