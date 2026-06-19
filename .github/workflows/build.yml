@@ -2,7 +2,7 @@ name: بناء تطبيق الأندرويد
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, opencode-v6 ]
   workflow_dispatch:
 
 jobs:

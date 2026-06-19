@@ -1,14 +1,5 @@
 package com.saidcharoun.tahaddisighar
 
-/**
- * سؤال واحد في اللعبة.
- * @param emoji رمز تعبيري يظهر فوق السؤال.
- * @param text نص السؤال.
- * @param options الخيارات (٣ أو ٤).
- * @param correctIndex رقم الخيار الصحيح (يبدأ من 0).
- * @param age الفئة العمرية: 1 = صغار (٣-٥)، 2 = كبار (٦-٨).
- * @param difficulty الصعوبة: 1 سهل، 2 متوسط، 3 صعب.
- */
 data class Question(
     val emoji: String,
     val text: String,
@@ -16,11 +7,30 @@ data class Question(
     val correctIndex: Int,
     val age: Int,
     val difficulty: Int
-)
+) {
+    val category: String get() = categorizeByEmoji(emoji)
+}
 
 enum class AgeGroup(val code: Int, val label: String, val emoji: String) {
     YOUNG(1, "٣ - ٥ سنوات", "🧸"),
     OLDER(2, "٦ - ٨ سنوات", "🎒"),
     NINE_TWELVE(3, "٩ - ١٢ سنة", "📚"),
     FAMILY(4, "العائلة والكبار", "🧠")
+}
+
+fun categorizeByEmoji(emoji: String): String = when {
+    emoji.matches(Regex(".*[🐱🐶🐄🐑🐓🦆🐝🦁🐘🐰🐟🐦🐭🐢🐜🦒🐔🐗🐴🐸🐍🦈🐊🦅🐧🐼🐨🦊🐻].*")) -> "حيوانات"
+    emoji.matches(Regex(".*[🍎🍌🍊🍓🍇🍉🍅🍫🍪🍕🥕🥦🍩🧀🥛🍼🍽️🍴🥄🍵☕🧃🧊🍚🍝🍜🍛🍣🍤🥟🍦🍰🧁🍭🍬🍫🍿🥜🌰🥗🥙🌮🌯🥪🍳🥞🧇🥓🍔🌭🍟🥨🥖🥐🍞🧀🥚🥣🥡🥢].*")) -> "طعام"
+    emoji.matches(Regex(".*[☁️🌿🌙☀️🌧️❄️🌸🌳🌷🌈🌊🔥🌞🌟🌍🌎🌏🌪️🌫️☀️🌤️⛅🌥️☁️🌦️🌧️⛈️🌩️🌨️❄️☃️🏔️🌋🗻🏕️🏖️🏜️🏝️🏞️🌅🌄🌠🎇🎆🌌🌉🌁].*")) -> "طبيعة"
+    emoji.matches(Regex(".*[⚪🔺🟦⭐❤️🔵🟢🟡🟠🟣🟤🔴🟩🟧🟨⬛⬜🔶🔷🔸🔹].*")) -> "أشكال وألوان"
+    emoji.matches(Regex(".*[👁️👂👃✋🦷🦶👅👀👄💪🦵🧠🫀🫁🦴👐🙌👏🤲🖐️✌️🤞👍👎👊✊🤛🤜👆👇👈👉🤚🖐️✋👌🤌🤏].*")) -> "جسم الإنسان"
+    emoji.matches(Regex(".*[🔢➕➖✍️🔤📅🗓️🕐⏰📊📈📉🧮📏📐📖📕📗📘📙📚📓📔📒📃📜📄🧾✏️✒️🖊️🖋️🖌️🖍️✂️🔗📎🖇️].*")) -> "أعداد وتعليم"
+    emoji.matches(Regex(".*[🚗🚌✈️🚢🚁🚂🚃🚄🚅🚆🚇🚈🚉🚊🚝🚞🚋🚌🚍🚎🚐🚑🚒🚓🚔🚕🚖🚗🚘🚙🚚🚛🚜🛴🛵🛺🚲🛩️🛫🛬🪂🚀🛸🏍️🛵🛹🛼🚏⛽🅿️🛤️🛣️].*")) -> "وسائل نقل"
+    emoji.matches(Regex(".*[🔢].*")) -> "أعداد"
+    emoji.contains("🔢") -> "أعداد"
+    else -> "متنوع"
+}
+
+fun extractCategories(questions: List<Question>): List<String> {
+    return questions.map { it.category }.distinct().sorted()
 }
