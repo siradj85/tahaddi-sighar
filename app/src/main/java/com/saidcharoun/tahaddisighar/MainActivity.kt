@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         AdManager.initialize(applicationContext)
         SoundManager.init(applicationContext)
+        QuestionRepository.refreshInBackground(applicationContext)
         enableEdgeToEdge()
         setContent {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {

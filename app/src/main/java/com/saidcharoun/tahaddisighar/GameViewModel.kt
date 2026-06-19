@@ -18,6 +18,9 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         const val QUESTIONS_PER_STAGE = 5
         const val MAX_LIVES = 3
+        // أقصى عدد أسئلة تُسحب عشوائياً من كل مستوى صعوبة في كل جولة
+        // (مع كبر البنك عن بُعد تصبح كل جولة عيّنة مختلفة = يستحيل الحفظ)
+        const val SAMPLE_PER_TIER = 40
         val STAGE_TITLES = listOf(
             "الانطلاق 🚀", "المغامرة 🌟", "الاستكشاف 🔍", "التحدّي 💪", "العباقرة 🧠",
             "الأبطال 🦸", "الصاعقة ⚡", "الكنز 💎", "النجوم ✨", "البطولة 👑"
@@ -200,20 +203,28 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** يُعيد نسخة من السؤال بترتيب خيارات مخلوط (لمنع حفظ موقع الإجابة الصحيحة). */
+    private fun Question.withShuffledOptions(): Question {
+        val idx = options.indices.shuffled()
+        return copy(
+            options = idx.map { options[it] },
+            correctIndex = idx.indexOf(correctIndex)
+        )
+    }
+
     /**
-     * يبني ٦ مراحل متدرّجة الصعوبة: مرحلتان سهلتان، ثم متوسطتان، ثم صعبتان.
+     * يبني المراحل من عيّنة عشوائية لكل مستوى صعوبة (سهل ثم متوسط ثم صعب)،
+     * مأخوذة من المصدر عن بُعد. كل جولة عيّنة مختلفة وخياراتها مخلوطة.
      */
     private fun buildStages(age: Int): List<Stage> {
-        val pool = QuestionBank.all.filter { it.age == age }
-        val ordered = pool.filter { it.difficulty == 1 }.shuffled() +
-            pool.filter { it.difficulty == 2 }.shuffled() +
-            pool.filter { it.difficulty == 3 }.shuffled()
+        val pool = QuestionRepository.load(getApplication()).filter { it.age == age }
+        fun pick(d: Int) = pool.filter { it.difficulty == d }.shuffled().take(SAMPLE_PER_TIER)
+        val ordered = (pick(1) + pick(2) + pick(3)).map { it.withShuffledOptions() }
 
         return ordered.chunked(QUESTIONS_PER_STAGE)
             .filter { it.size >= 3 } // تجاهل مرحلة ناقصة جداً
             .mapIndexed { i, qs ->
-                val title = STAGE_TITLES[i % STAGE_TITLES.size]
-                Stage(number = i + 1, title = title, questions = qs)
+                Stage(number = i + 1, title = STAGE_TITLES[i % STAGE_TITLES.size], questions = qs)
             }
     }
 }
