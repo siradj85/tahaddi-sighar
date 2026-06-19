@@ -57,6 +57,7 @@ fun AppRoot(vm: GameViewModel = viewModel()) {
             Screen.STAGE_CLEAR -> StageClearScreen(vm)
             Screen.GAME_OVER -> GameOverScreen(vm)
             Screen.FINISHED -> FinishedScreen(vm)
+            Screen.DAILY_CHALLENGE -> QuizScreen(vm)
         }
     }
 }
@@ -73,6 +74,15 @@ private fun SoundToggle(vm: GameViewModel, modifier: Modifier = Modifier) {
             contentDescription = "الصوت",
             tint = Color.White
         )
+    }
+}
+
+@Composable
+private fun CoinBalance(vm: GameViewModel) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Default.MonetizationOn, contentDescription = null, tint = Gold, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(4.dp))
+        Text("${vm.coinBalance}", color = Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -111,12 +121,25 @@ fun HomeScreen(vm: GameViewModel) {
                 BigButton("ابدأ اللعب") { vm.openAgeSelect() }
             }
 
+            Spacer(Modifier.height(14.dp))
+
+            // التحدّي اليومي
+            if (vm.canPlayDaily()) {
+                BigButton("🌟 التحدّي اليومي", container = Color(0xFFFF6F00), textColor = Color.White) {
+                    vm.startDailyChallenge()
+                }
+            } else {
+                BigButton("✅ أُكمل التحدّي اليومي", container = Color(0xFF388E3C), textColor = Color.White) { }
+            }
+
             Spacer(Modifier.height(28.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Gold)
                 Spacer(Modifier.width(8.dp))
                 Text("أفضل نتيجة: ${vm.bestScore}", color = Color.White, fontSize = 18.sp)
             }
+            Spacer(Modifier.height(8.dp))
+            CoinBalance(vm)
         }
     }
 }
@@ -162,7 +185,6 @@ fun QuizScreen(vm: GameViewModel) {
     val q = vm.current ?: return
     val stage = vm.currentStage ?: return
 
-    // ----- المؤقّت الزمني لكل سؤال -----
     val totalTime = vm.secondsPerQuestion
     var timeLeft by remember(vm.qIndex, vm.currentStageIndex) { mutableIntStateOf(totalTime) }
     LaunchedEffect(vm.qIndex, vm.currentStageIndex, vm.answered) {
@@ -177,15 +199,26 @@ fun QuizScreen(vm: GameViewModel) {
     }
     val timeColor = if (timeLeft <= 5) Color(0xFFFF5252) else Gold
 
+    // Shop dialog state
+    var showShop by remember { mutableStateOf(false) }
+
     Box(Modifier.fillMaxSize().background(bg()).padding(20.dp)) {
         Column(Modifier.fillMaxSize()) {
-            // الشريط العلوي: المرحلة + القلوب
+            // الشريط العلوي: المرحلة + القلوب + العملات
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text("المرحلة ${stage.number} / ${vm.totalStages}", color = Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text(stage.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    if (vm.isDailyChallenge) {
+                        Text("التحدّي اليومي 🌟", color = Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("السؤال ${stage.number}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("المرحلة ${stage.number} / ${vm.totalStages}", color = Gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stage.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Coin balance in top bar
+                    CoinBalance(vm)
+                    Spacer(Modifier.width(12.dp))
                     repeat(GameViewModel.MAX_LIVES) { i ->
                         Icon(
                             if (i < vm.lives) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -197,7 +230,6 @@ fun QuizScreen(vm: GameViewModel) {
                 }
             }
             Spacer(Modifier.height(10.dp))
-            // المؤقّت الزمني
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Timer, contentDescription = null, tint = timeColor, modifier = Modifier.size(22.dp))
                 Spacer(Modifier.width(6.dp))
@@ -242,17 +274,93 @@ fun QuizScreen(vm: GameViewModel) {
             Spacer(Modifier.weight(1f))
 
             if (!vm.answered) {
-                OutlinedButton(
-                    onClick = { SoundManager.click(); AdManager.showRewardedAd(activity) { vm.useFiftyFifty() } },
-                    enabled = !vm.fiftyUsed,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Text(if (vm.fiftyUsed) "تم استخدام المساعدة" else "🆘 مساعدة (احذف إجابات خاطئة)", color = Color.White, fontSize = 17.sp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // زر المساعدة المجانية (إعلان)
+                    OutlinedButton(
+                        onClick = { SoundManager.click(); AdManager.showRewardedAd(activity) {
+                            if (vm.isDailyChallenge) vm.earnAdCoin()
+                            else vm.useFiftyFifty()
+                        } },
+                        enabled = !vm.fiftyUsed,
+                        modifier = Modifier.weight(1f).height(52.dp),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Text(if (vm.fiftyUsed) "تم الاستخدام" else "🆘 مساعدة", color = Color.White, fontSize = 15.sp)
+                    }
+                    // زر المتجر (عملات)
+                    OutlinedButton(
+                        onClick = { SoundManager.click(); showShop = true },
+                        modifier = Modifier.height(52.dp),
+                        shape = RoundedCornerShape(20.dp)
+                    ) {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = "المتجر", tint = Gold, modifier = Modifier.size(22.dp))
+                    }
                 }
             } else {
                 BigButton(if (vm.qIndex + 1 >= stage.questions.size) "إنهاء المرحلة" else "السؤال التالي ←") { vm.next() }
             }
+        }
+
+        // Shop dialog
+        if (showShop) {
+            AlertDialog(
+                onDismissRequest = { showShop = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = Gold)
+                        Spacer(Modifier.width(8.dp))
+                        Text("المتجر 🪙", fontWeight = FontWeight.Bold)
+                    }
+                },
+                text = {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CoinBalance(vm)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        // شراء قلب إضافي
+                        Button(
+                            onClick = {
+                                if (vm.buyExtraLife()) {
+                                    SoundManager.correct()
+                                    showShop = false
+                                }
+                            },
+                            enabled = vm.lives < GameViewModel.MAX_LIVES,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252)),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.White)
+                            Spacer(Modifier.width(8.dp))
+                            Text("❤️ قلب إضافي — 🪙 10", color = Color.White)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        // شراء تلميح (حذف خيارين)
+                        Button(
+                            onClick = {
+                                if (vm.buyHint()) {
+                                    SoundManager.correct()
+                                    showShop = false
+                                }
+                            },
+                            enabled = !vm.fiftyUsed && !vm.answered,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7B1FA2)),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Icon(Icons.Default.Lightbulb, contentDescription = null, tint = Gold)
+                            Spacer(Modifier.width(8.dp))
+                            Text("💡 تلميح (حذف خيارين) — 🪙 5", color = Color.White)
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showShop = false }) {
+                        Text("إغلاق")
+                    }
+                }
+            )
         }
     }
 }
@@ -326,6 +434,14 @@ fun GameOverScreen(vm: GameViewModel) {
             Text("💔", fontSize = 92.sp)
             Text("نفدت القلوب!", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(Modifier.height(10.dp))
+            if (vm.lives < GameViewModel.MAX_LIVES && vm.coinBalance >= 10) {
+                Text("يمكنك شراء قلب إضافي بـ 🪙 10", fontSize = 16.sp, color = Color(0xFFFFE082), textAlign = TextAlign.Center)
+                Spacer(Modifier.height(12.dp))
+                BigButton("❤️ اشتري قلباً (🪙 10)", container = Color(0xFFFF5252), textColor = Color.White) {
+                    if (vm.buyExtraLife()) vm.retryStage()
+                }
+                Spacer(Modifier.height(10.dp))
+            }
             Text("لا تقلق، حاول هذه المرحلة مرة أخرى\nأنت تستطيع! 💪", fontSize = 18.sp, color = Color(0xFFFFCDD2), textAlign = TextAlign.Center)
             Spacer(Modifier.height(36.dp))
             BigButton("🔄 إعادة المحاولة") { vm.retryStage() }
@@ -342,14 +458,23 @@ fun FinishedScreen(vm: GameViewModel) {
     val total = vm.totalQuestions
     Box(Modifier.fillMaxSize().background(bg()), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(28.dp)) {
-            Text("🏆", fontSize = 100.sp)
-            Text("بطل تحدي الصغار!", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp))
-            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                Column(Modifier.padding(horizontal = 44.dp, vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("نتيجتك النهائية", fontSize = 16.sp, color = Color.Gray)
-                    Text("${vm.totalScore} / $total", fontSize = 46.sp, fontWeight = FontWeight.Bold, color = DeepPurple)
-                    Text("أفضل نتيجة: ${vm.bestScore}", fontSize = 15.sp, color = Color(0xFF6A1B9A))
+            if (vm.isDailyChallenge) {
+                Text("🌙", fontSize = 100.sp)
+                Text("أكملت التحدّي اليومي!", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(12.dp))
+                Text("نقاطك: ${vm.totalScore} / $total", fontSize = 22.sp, color = Gold)
+                Spacer(Modifier.height(8.dp))
+                Text("+ 🪙 3 مكافأة إكمال التحدّي!", fontSize = 18.sp, color = Color(0xFFFFE082))
+            } else {
+                Text("🏆", fontSize = 100.sp)
+                Text("بطل تحدي الصغار!", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(12.dp))
+                Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                    Column(Modifier.padding(horizontal = 44.dp, vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("نتيجتك النهائية", fontSize = 16.sp, color = Color.Gray)
+                        Text("${vm.totalScore} / $total", fontSize = 46.sp, fontWeight = FontWeight.Bold, color = DeepPurple)
+                        Text("أفضل نتيجة: ${vm.bestScore}", fontSize = 15.sp, color = Color(0xFF6A1B9A))
+                    }
                 }
             }
             Spacer(Modifier.height(28.dp))
@@ -357,10 +482,14 @@ fun FinishedScreen(vm: GameViewModel) {
                 ShareCard.share(activity, vm.totalScore, total, vm.ageGroup.label)
             }
             Spacer(Modifier.height(12.dp))
-            BigButton("العب من جديد", container = Color(0xFF9C27B0), textColor = Color.White) { vm.openAgeSelect() }
-            Spacer(Modifier.height(8.dp))
+            if (!vm.isDailyChallenge) {
+                BigButton("العب من جديد", container = Color(0xFF9C27B0), textColor = Color.White) { vm.openAgeSelect() }
+                Spacer(Modifier.height(8.dp))
+            }
             TextButton(onClick = { vm.goHome() }) { Text("الرئيسية", color = Color.White, fontSize = 17.sp) }
         }
-        Confetti(Modifier.fillMaxSize(), pieceCount = 140)
+        if (!vm.isDailyChallenge) {
+            Confetti(Modifier.fillMaxSize(), pieceCount = 140)
+        }
     }
 }
