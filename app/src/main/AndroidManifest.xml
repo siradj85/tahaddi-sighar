@@ -16,7 +16,7 @@
         <!-- معرّف تطبيق AdMob (هذا معرّف اختباري رسمي من جوجل — استبدله بمعرّفك) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-7149494294947585~5268794653" />
 
         <activity
             android:name=".MainActivity"

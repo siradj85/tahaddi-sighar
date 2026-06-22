@@ -26,8 +26,8 @@ object AdManager {
 
     private const val TAG = "AdManager"
 
-    // معرّف اختباري رسمي للإعلان المكافئ من جوجل (استبدله بمعرّفك قبل النشر)
-    private const val REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917"
+    // معرّف الإعلان المكافئ الحقيقي (AdMob — حساب pub-7149494294947585)
+    private const val REWARDED_AD_UNIT_ID = "ca-app-pub-7149494294947585/5028855577"
 
     private var rewardedAd: RewardedAd? = null
     private var isLoading = false
