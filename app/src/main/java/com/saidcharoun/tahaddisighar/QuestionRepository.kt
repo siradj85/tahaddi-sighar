@@ -66,9 +66,12 @@ object QuestionRepository {
                 connectTimeout = 8000
                 readTimeout = 8000
                 requestMethod = "GET"
+                setRequestProperty("Accept-Charset", "utf-8")
+                setRequestProperty("Accept-Encoding", "identity")
             }
             if (conn.responseCode == 200) {
-                conn.inputStream.bufferedReader().use { it.readText() }
+                // فك ترميز صريح UTF-8 (يمنع أي تشويه للنص العربي)
+                conn.inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
             } else null
         } catch (_: Exception) {
             null
