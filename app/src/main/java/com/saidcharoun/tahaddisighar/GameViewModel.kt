@@ -10,7 +10,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.random.Random
 
-enum class Screen { HOME, AGE, QUIZ, STAGE_CLEAR, GAME_OVER, FINISHED, DAILY_CHALLENGE, MODE_SELECT, CATEGORY_SELECT, ACHIEVEMENTS, LEADERBOARD, FAMILY_RESULT }
+enum class Screen { SPLASH, HOME, AGE, QUIZ, STAGE_CLEAR, GAME_OVER, FINISHED, DAILY_CHALLENGE, MODE_SELECT, CATEGORY_SELECT, ACHIEVEMENTS, LEADERBOARD, FAMILY_RESULT }
 
 enum class GameMode { NORMAL, TIME_ATTACK, SURVIVAL, FAMILY, SINGLE_CATEGORY }
 
@@ -43,7 +43,7 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
         }
 
     // ---------- الحالة ----------
-    var screen by mutableStateOf(Screen.HOME); private set
+    var screen by mutableStateOf(Screen.SPLASH); private set
     var ageGroup by mutableStateOf(AgeGroup.YOUNG); private set
     var stages by mutableStateOf<List<Stage>>(emptyList()); private set
     var currentStageIndex by mutableIntStateOf(0); private set
@@ -303,6 +303,8 @@ class GameViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---------- التنقل ----------
+    fun finishSplash() { if (screen == Screen.SPLASH) screen = Screen.HOME }
+
     fun openAgeSelect() { screen = Screen.AGE }
 
     fun goHome() {

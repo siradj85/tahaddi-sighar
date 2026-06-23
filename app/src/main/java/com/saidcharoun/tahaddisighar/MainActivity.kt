@@ -6,12 +6,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -51,6 +56,7 @@ class MainActivity : ComponentActivity() {
 fun AppRoot(vm: GameViewModel = viewModel()) {
     AnimatedContent(targetState = vm.screen, label = "screen") { screen ->
         when (screen) {
+            Screen.SPLASH -> SplashScreen(vm)
             Screen.HOME -> HomeScreen(vm)
             Screen.AGE -> AgeScreen(vm)
             Screen.QUIZ -> QuizScreen(vm)
@@ -301,75 +307,145 @@ fun FamilyResultScreen(vm: GameViewModel) {
     }
 }
 
+// ===================== شاشة البداية =====================
+@Composable
+fun SplashScreen(vm: GameViewModel) {
+    var started by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (started) 1f else 0.55f, tween(750), label = "scale")
+    val fade by animateFloatAsState(if (started) 1f else 0f, tween(750), label = "fade")
+
+    LaunchedEffect(Unit) {
+        started = true
+        delay(1900)
+        vm.finishSplash()
+    }
+
+    Box(Modifier.fillMaxSize().background(bg()), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.alpha(fade)
+        ) {
+            // الشعار — استبدله بأيقونة التطبيق الجديدة لاحقاً (painterResource)
+            Box(
+                Modifier.size(150.dp).scale(scale).background(Gold, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("⭐", fontSize = 86.sp)
+            }
+            Spacer(Modifier.height(22.dp))
+            Text("تحدي الصغار", fontSize = 42.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(Modifier.height(8.dp))
+            Text("تعلّم وأنت تلعب", fontSize = 17.sp, color = Color(0xFFFFE082))
+            Spacer(Modifier.height(30.dp))
+            CircularProgressIndicator(color = Gold, strokeWidth = 3.dp, modifier = Modifier.size(34.dp))
+        }
+    }
+}
+
 // ===================== الرئيسية =====================
 @Composable
 fun HomeScreen(vm: GameViewModel) {
     Box(Modifier.fillMaxSize().background(bg())) {
-        Row(Modifier.align(Alignment.TopEnd).padding(8.dp)) {
-            MusicToggle(vm)
-            SoundToggle(vm)
-        }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.align(Alignment.Center).padding(28.dp)
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 12.dp)
         ) {
-            Text("⭐", fontSize = 92.sp)
-            Text("تحدي الصغار", fontSize = 46.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(6.dp))
-            Text("تعلّم وأنت تلعب عبر مراحل ممتعة!", fontSize = 17.sp, color = Color(0xFFFFE082), textAlign = TextAlign.Center)
-            Spacer(Modifier.height(24.dp))
+            // الشريط العلوي: العملات + أزرار الصوت
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CoinBalance(vm)
+                Row {
+                    MusicToggle(vm)
+                    SoundToggle(vm)
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // الشعار والعنوان
+            Box(
+                Modifier.size(96.dp).background(Gold, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("⭐", fontSize = 56.sp)
+            }
+            Spacer(Modifier.height(10.dp))
+            Text("تحدي الصغار", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(Modifier.height(4.dp))
+            Text("تعلّم وأنت تلعب عبر مراحل ممتعة!", fontSize = 15.sp, color = Color(0xFFFFE082), textAlign = TextAlign.Center)
 
             // السلسلة اليومية
             val streak = CoinManager.getStreak(LocalContext.current)
             if (streak > 0) {
-                Text("🔥 سلسلة $streak يوم", fontSize = 18.sp, color = Gold, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
+                Surface(color = Color(0x33FFFFFF), shape = RoundedCornerShape(20.dp)) {
+                    Text(
+                        "🔥 سلسلة $streak يوم",
+                        Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        fontSize = 16.sp, color = Gold, fontWeight = FontWeight.Bold
+                    )
+                }
             }
+
+            Spacer(Modifier.height(22.dp))
 
             if (vm.hasSavedGame()) {
                 BigButton("▶ متابعة (مرحلة ${vm.savedStageNumber()})") { vm.continueGame() }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
             }
 
             BigButton("🎮 أوضاع اللعب") { vm.openModeSelect() }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
             if (vm.canPlayDaily()) {
                 BigButton("🌟 التحدّي اليومي", container = Color(0xFFFF6F00), textColor = Color.White) {
                     vm.startDailyChallenge()
                 }
             } else {
-                BigButton("✅ أُكمل التحدّي اليومي", container = Color(0xFF388E3C), textColor = Color.White) { }
+                BigButton("✅ أكملت التحدّي اليومي", container = Color(0xFF388E3C), textColor = Color.White) { }
             }
 
             Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(
-                    onClick = { vm.openAchievements() },
-                    shape = RoundedCornerShape(16.dp)
+                    onClick = { SoundManager.click(); vm.openAchievements() },
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.weight(1f).height(52.dp)
                 ) {
                     Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Gold)
                     Spacer(Modifier.width(6.dp))
                     Text("الإنجازات", color = Color.White)
                 }
                 OutlinedButton(
-                    onClick = { vm.openLeaderboard() },
-                    shape = RoundedCornerShape(16.dp)
+                    onClick = { SoundManager.click(); vm.openLeaderboard() },
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.weight(1f).height(52.dp)
                 ) {
                     Icon(Icons.Default.Leaderboard, contentDescription = null, tint = Gold)
                     Spacer(Modifier.width(6.dp))
-                    Text("المتصدّرين", color = Color.White)
+                    Text("المتصدّرون", color = Color.White)
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Gold)
-                Spacer(Modifier.width(8.dp))
-                Text("أفضل نتيجة: ${vm.bestScore}", color = Color.White, fontSize = 18.sp)
+            Spacer(Modifier.height(20.dp))
+
+            // بطاقة أفضل نتيجة
+            Surface(color = Color(0x22FFFFFF), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Gold)
+                    Spacer(Modifier.width(8.dp))
+                    Text("أفضل نتيجة: ${vm.bestScore}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
-            Spacer(Modifier.height(8.dp))
-            CoinBalance(vm)
+
+            Spacer(Modifier.height(12.dp))
         }
     }
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.media.MediaPlayer
+import android.media.SoundPool
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -11,38 +13,124 @@ import java.util.concurrent.Executors
 import kotlin.math.PI
 import kotlin.math.sin
 
+/**
+ * يدير المؤثرات الصوتية والموسيقى.
+ *
+ * يبحث أولاً عن ملفات صوت حقيقية في res/raw بالأسماء التالية:
+ *   snd_correct, snd_wrong, snd_win, snd_click, snd_life_lost  (مؤثرات قصيرة .ogg/.mp3/.wav)
+ *   snd_music  (موسيقى خلفية قابلة للتكرار)
+ * فإن لم يجدها، يولّد نغمات بسيطة برمجياً (احتياطي) — فيبقى التطبيق يعمل بلا أي ملفات.
+ * يكفي وضع الملفات في app/src/main/res/raw/ بهذه الأسماء لتُستخدم تلقائياً.
+ */
 object SoundManager {
 
     var enabled: Boolean = true
     var musicOn: Boolean = false
-    private var musicPlaying = false
-    private var musicThread: Thread? = null
 
     private const val SR = 44100
     private val exec = Executors.newSingleThreadExecutor()
     private var vibrator: Vibrator? = null
 
+    // الصوت من ملفات res/raw (إن وُجدت)
+    private var appContext: Context? = null
+    private var soundPool: SoundPool? = null
+    private val sampleIds = mutableMapOf<String, Int>()   // اسم المورد -> معرّف SoundPool
+    private var musicResId: Int = 0
+    private var musicPlayer: MediaPlayer? = null
+
+    // الموسيقى المولّدة احتياطياً
+    private var genMusicPlaying = false
+    private var genMusicThread: Thread? = null
+
     fun init(context: Context) {
+        appContext = context.applicationContext
         @Suppress("DEPRECATION")
         vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_GAME)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        soundPool = SoundPool.Builder().setMaxStreams(4).setAudioAttributes(attrs).build()
+
+        val ctx = appContext ?: return
+        for (name in listOf("snd_correct", "snd_wrong", "snd_win", "snd_click", "snd_life_lost")) {
+            val resId = ctx.resources.getIdentifier(name, "raw", ctx.packageName)
+            if (resId != 0) {
+                val id = soundPool?.load(ctx, resId, 1) ?: 0
+                if (id != 0) sampleIds[name] = id
+            }
+        }
+        musicResId = ctx.resources.getIdentifier("snd_music", "raw", ctx.packageName)
     }
 
-    fun toggleMusic() {
-        musicOn = !musicOn
-        if (musicOn) {
-            startMusic()
+    // ---------- المؤثرات ----------
+    fun click() = playSample("snd_click") { melody(880.0 to 40, volume = 0.22) }
+
+    fun correct() = playSample("snd_correct") { melody(784.0 to 90, 1046.0 to 150, volume = 0.45) }
+
+    fun wrong() {
+        playSample("snd_wrong") { melody(330.0 to 130, 247.0 to 170, volume = 0.4) }
+        vibrate(180)
+    }
+
+    fun lifeLost() = playSample("snd_life_lost") { melody(392.0 to 120, volume = 0.35) }
+
+    fun win() = playSample("snd_win") {
+        melody(523.0 to 130, 659.0 to 130, 784.0 to 130, 1046.0 to 280, volume = 0.5)
+    }
+
+    private fun playSample(name: String, fallback: () -> ShortArray) {
+        if (!enabled) return
+        val id = sampleIds[name]
+        if (id != null) {
+            soundPool?.play(id, 1f, 1f, 1, 0, 1f)
         } else {
-            stopMusic()
+            playGenerated(fallback())
         }
     }
 
+    // ---------- الموسيقى ----------
+    fun toggleMusic() {
+        musicOn = !musicOn
+        if (musicOn) startMusic() else stopMusic()
+    }
+
     fun startMusic() {
-        if (musicPlaying) return
-        musicPlaying = true
-        musicThread = Thread {
+        val ctx = appContext
+        if (musicResId != 0 && ctx != null) {
+            if (musicPlayer != null) return
+            try {
+                musicPlayer = MediaPlayer.create(ctx, musicResId)?.apply {
+                    isLooping = true
+                    setVolume(0.5f, 0.5f)
+                    start()
+                }
+            } catch (_: Exception) {
+            }
+        } else {
+            startGeneratedMusic()
+        }
+    }
+
+    fun stopMusic() {
+        try {
+            musicPlayer?.stop()
+            musicPlayer?.release()
+        } catch (_: Exception) {
+        }
+        musicPlayer = null
+        stopGeneratedMusic()
+    }
+
+    // ---------- الموسيقى المولّدة (احتياطي) ----------
+    private fun startGeneratedMusic() {
+        if (genMusicPlaying) return
+        genMusicPlaying = true
+        genMusicThread = Thread {
             val melody = generateMelody(30.0)
             val totalSamples = melody.size
-            while (musicPlaying) {
+            while (genMusicPlaying) {
                 try {
                     val track = AudioTrack.Builder()
                         .setAudioAttributes(
@@ -72,10 +160,10 @@ object SoundManager {
         }.apply { isDaemon = true; start() }
     }
 
-    fun stopMusic() {
-        musicPlaying = false
-        musicThread?.interrupt()
-        musicThread = null
+    private fun stopGeneratedMusic() {
+        genMusicPlaying = false
+        genMusicThread?.interrupt()
+        genMusicThread = null
     }
 
     private fun generateMelody(durationSeconds: Double): ShortArray {
@@ -134,7 +222,7 @@ object SoundManager {
         return out
     }
 
-    private fun play(samples: ShortArray) {
+    private fun playGenerated(samples: ShortArray) {
         if (!enabled) return
         exec.execute {
             try {
@@ -164,21 +252,6 @@ object SoundManager {
             }
         }
     }
-
-    fun click() = play(melody(880.0 to 40, volume = 0.22))
-
-    fun correct() = play(melody(784.0 to 90, 1046.0 to 150, volume = 0.45))
-
-    fun wrong() {
-        play(melody(330.0 to 130, 247.0 to 170, volume = 0.4))
-        vibrate(180)
-    }
-
-    fun lifeLost() = play(melody(392.0 to 120, volume = 0.35))
-
-    fun win() = play(
-        melody(523.0 to 130, 659.0 to 130, 784.0 to 130, 1046.0 to 280, volume = 0.5)
-    )
 
     private fun vibrate(ms: Long) {
         if (!enabled) return
