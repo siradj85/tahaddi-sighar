@@ -178,6 +178,28 @@ private fun ModeButton(title: String, desc: String, color: Color, onClick: () ->
 }
 
 // ===================== اختيار الفئة =====================
+private fun categoryEmoji(c: String): String = when (c) {
+    "حيوانات" -> "🐾"
+    "طعام" -> "🍎"
+    "طبيعة" -> "🌿"
+    "أشكال وألوان" -> "🎨"
+    "جسم الإنسان" -> "🫀"
+    "أعداد وتعليم", "أعداد" -> "🔢"
+    "وسائل نقل" -> "🚗"
+    else -> "✨"
+}
+
+private fun categoryColor(c: String): Color = when (c) {
+    "حيوانات" -> Color(0xFF8D6E63)
+    "طعام" -> Color(0xFFEF5350)
+    "طبيعة" -> Color(0xFF43A047)
+    "أشكال وألوان" -> Color(0xFFAB47BC)
+    "جسم الإنسان" -> Color(0xFFEC407A)
+    "أعداد وتعليم", "أعداد" -> Color(0xFF1E88E5)
+    "وسائل نقل" -> Color(0xFFFB8C00)
+    else -> Color(0xFF7B1FA2)
+}
+
 @Composable
 fun CategorySelectScreen(vm: GameViewModel) {
     Box(Modifier.fillMaxSize().background(bg())) {
@@ -186,15 +208,25 @@ fun CategorySelectScreen(vm: GameViewModel) {
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)
         ) {
             Spacer(Modifier.height(16.dp))
-            Text("اختر فئة الأسئلة", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("اختر حزمة الأسئلة", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(Modifier.height(6.dp))
+            Text("اختر موضوعك المفضّل والعب أسئلة عنه فقط", fontSize = 14.sp, color = Color(0xFFFFE082), textAlign = TextAlign.Center)
             Spacer(Modifier.height(20.dp))
             vm.availableCategories.forEach { category ->
                 Card(
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF9C27B0)),
+                    colors = CardDefaults.cardColors(containerColor = categoryColor(category)),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { SoundManager.click(); vm.selectCategory(category) }
                 ) {
-                    Text(category, Modifier.padding(18.dp), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(categoryEmoji(category), fontSize = 38.sp)
+                        Spacer(Modifier.width(16.dp))
+                        Text(category, fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.weight(1f))
+                        Icon(Icons.Default.ChevronLeft, contentDescription = null, tint = Color(0xCCFFFFFF))
+                    }
                 }
             }
             Spacer(Modifier.height(16.dp))
