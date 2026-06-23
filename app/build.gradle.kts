@@ -74,4 +74,7 @@ dependencies {
 
     // AdMob (إعلانات الربح)
     implementation("com.google.android.gms:play-services-ads:23.5.0")
+
+    // WorkManager — لجدولة إشعار التذكير اليومي
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }

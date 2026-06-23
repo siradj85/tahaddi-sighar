@@ -1,10 +1,17 @@
 package com.saidcharoun.tahaddisighar
 
+import android.Manifest
 import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -25,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -36,11 +44,22 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
+
+    private val notifPermLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AdManager.initialize(applicationContext)
         SoundManager.init(applicationContext)
         QuestionRepository.refreshInBackground(applicationContext)
+        ReminderManager.scheduleDaily(applicationContext)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         enableEdgeToEdge()
         setContent {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -69,6 +88,7 @@ fun AppRoot(vm: GameViewModel = viewModel()) {
             Screen.ACHIEVEMENTS -> AchievementsScreen(vm)
             Screen.LEADERBOARD -> LeaderboardScreen(vm)
             Screen.FAMILY_RESULT -> FamilyResultScreen(vm)
+            Screen.SETTINGS -> SettingsScreen(vm)
         }
     }
 }
@@ -307,6 +327,91 @@ fun FamilyResultScreen(vm: GameViewModel) {
     }
 }
 
+// ===================== الإعدادات =====================
+@Composable
+fun SettingsScreen(vm: GameViewModel) {
+    val ctx = LocalContext.current
+    var music by remember { mutableStateOf(SoundManager.musicOn) }
+
+    fun open(url: String) {
+        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } catch (_: Exception) {}
+    }
+
+    Box(Modifier.fillMaxSize().background(bg())) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)
+        ) {
+            Spacer(Modifier.height(16.dp))
+            Text("الإعدادات ⚙️", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(Modifier.height(20.dp))
+
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0x22FFFFFF)), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(8.dp)) {
+                    SettingSwitchRow("المؤثرات الصوتية", Icons.Default.VolumeUp, vm.soundOn) { vm.toggleSound() }
+                    SettingSwitchRow("الموسيقى الخلفية", Icons.Default.MusicNote, music) {
+                        SoundManager.toggleMusic(); music = SoundManager.musicOn
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0x22FFFFFF)), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(8.dp)) {
+                    SettingActionRow("قيّم التطبيق", Icons.Default.Star) {
+                        open("https://play.google.com/store/apps/details?id=com.saidcharoun.tahaddisighar")
+                    }
+                    SettingActionRow("شارك التطبيق", Icons.Default.Share) {
+                        val share = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "العب تحدّي الصغار — لعبة أسئلة تعليمية ممتعة للأطفال!\nhttps://play.google.com/store/apps/details?id=com.saidcharoun.tahaddisighar"
+                            )
+                        }
+                        try { ctx.startActivity(Intent.createChooser(share, "مشاركة")) } catch (_: Exception) {}
+                    }
+                    SettingActionRow("سياسة الخصوصية", Icons.Default.Lock) {
+                        open("https://siradj85.github.io/tahaddi-sighar/privacy.html")
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+            Text("الإصدار 7.0", fontSize = 14.sp, color = Color(0xFFFFE082))
+            Spacer(Modifier.height(16.dp))
+            TextButton(onClick = { vm.goHome() }) { Text("رجوع", color = Color.White, fontSize = 18.sp) }
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitchRow(title: String, icon: ImageVector, checked: Boolean, onToggle: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = Gold)
+        Spacer(Modifier.width(12.dp))
+        Text(title, color = Color.White, fontSize = 18.sp, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = { onToggle() })
+    }
+}
+
+@Composable
+private fun SettingActionRow(title: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 12.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = Gold)
+        Spacer(Modifier.width(12.dp))
+        Text(title, color = Color.White, fontSize = 18.sp, modifier = Modifier.weight(1f))
+        Icon(Icons.Default.ChevronLeft, contentDescription = null, tint = Color(0x88FFFFFF))
+    }
+}
+
 // ===================== شاشة البداية =====================
 @Composable
 fun SplashScreen(vm: GameViewModel) {
@@ -360,6 +465,9 @@ fun HomeScreen(vm: GameViewModel) {
                 Row {
                     MusicToggle(vm)
                     SoundToggle(vm)
+                    IconButton(onClick = { SoundManager.click(); vm.openSettings() }) {
+                        Icon(Icons.Default.Settings, contentDescription = "الإعدادات", tint = Color.White)
+                    }
                 }
             }
 
