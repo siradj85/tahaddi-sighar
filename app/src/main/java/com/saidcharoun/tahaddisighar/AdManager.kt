@@ -13,14 +13,9 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 /**
  * مدير الإعلانات المكافئة (Rewarded Ads).
  *
- * مهم جداً لسياسة "مصمم للعائلات" في Google Play:
- * - الإعلان المكافئ هو الأنسب لتطبيقات الأطفال.
- * - فعّلنا معاملة المحتوى الموجّه للأطفال (child-directed) وتقييم محتوى G.
- *
- * المعرّفات هنا اختبارية رسمية من جوجل وتعمل فوراً للتجربة.
- * قبل النشر استبدلها بمعرّفاتك من حساب AdMob:
- *   - معرّف التطبيق في AndroidManifest.xml
- *   - REWARDED_AD_UNIT_ID أدناه
+ * التطبيق موجّه لكل الأعمار (13+) وليس مصمّماً للأطفال، لذا:
+ * - لا نفعّل معاملة المحتوى الموجّه للأطفال (child-directed = UNSPECIFIED).
+ * - نحدّ تقييم محتوى الإعلانات إلى G لإبقائها نظيفة ومناسبة للجميع.
  */
 object AdManager {
 
@@ -34,10 +29,10 @@ object AdManager {
 
     /** يُستدعى مرة واحدة عند بدء التطبيق. */
     fun initialize(context: Context) {
-        // ضبط التطبيق ليكون موجّهاً للأطفال ومحتوى مناسب لكل الأعمار.
+        // التطبيق ليس موجّهاً للأطفال؛ نُبقي محتوى الإعلانات بتقييم G (نظيف للجميع).
         val config = RequestConfiguration.Builder()
             .setTagForChildDirectedTreatment(
-                RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE
+                RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_UNSPECIFIED
             )
             .setMaxAdContentRating(RequestConfiguration.MAX_AD_CONTENT_RATING_G)
             .build()

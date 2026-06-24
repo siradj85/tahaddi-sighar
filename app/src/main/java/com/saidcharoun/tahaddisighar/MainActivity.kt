@@ -399,7 +399,7 @@ fun SettingsScreen(vm: GameViewModel) {
                             type = "text/plain"
                             putExtra(
                                 Intent.EXTRA_TEXT,
-                                "العب تحدّي الصغار — لعبة أسئلة تعليمية ممتعة للأطفال!\nhttps://play.google.com/store/apps/details?id=com.saidcharoun.tahaddisighar"
+                                "العب تحدّي المعلومات — لعبة أسئلة ومسابقات ممتعة لكل الأعمار!\nhttps://play.google.com/store/apps/details?id=com.saidcharoun.tahaddisighar"
                             )
                         }
                         try { ctx.startActivity(Intent.createChooser(share, "مشاركة")) } catch (_: Exception) {}
@@ -470,7 +470,7 @@ fun SplashScreen(vm: GameViewModel) {
                 Text("⭐", fontSize = 86.sp)
             }
             Spacer(Modifier.height(22.dp))
-            Text("تحدي الصغار", fontSize = 42.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("تحدي المعلومات", fontSize = 42.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(Modifier.height(8.dp))
             Text("تعلّم وأنت تلعب", fontSize = 17.sp, color = Color(0xFFFFE082))
             Spacer(Modifier.height(30.dp))
@@ -513,7 +513,7 @@ fun HomeScreen(vm: GameViewModel) {
                 Text("⭐", fontSize = 56.sp)
             }
             Spacer(Modifier.height(10.dp))
-            Text("تحدي الصغار", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("تحدي المعلومات", fontSize = 36.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(Modifier.height(4.dp))
             Text("تعلّم وأنت تلعب عبر مراحل ممتعة!", fontSize = 15.sp, color = Color(0xFFFFE082), textAlign = TextAlign.Center)
 
@@ -599,7 +599,7 @@ fun AgeScreen(vm: GameViewModel) {
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)
         ) {
             Spacer(Modifier.height(16.dp))
-            Text("اختر الفئة العمرية", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("اختر مستوى التحدّي", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(Modifier.height(20.dp))
             AgeGroup.entries.forEach { group ->
                 Card(
@@ -971,7 +971,7 @@ fun FinishedScreen(vm: GameViewModel) {
                 }
                 else -> {
                     Text("🏆", fontSize = 100.sp)
-                    Text("بطل تحدي الصغار!", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+                    Text("بطل تحدي المعلومات!", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(12.dp))
                     Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                         Column(Modifier.padding(horizontal = 44.dp, vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {

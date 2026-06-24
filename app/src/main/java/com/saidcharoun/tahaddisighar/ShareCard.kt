@@ -26,12 +26,12 @@ object ShareCard {
     fun shareProgress(activity: Activity, stageReached: Int, totalStages: Int, score: Int) {
         val title = "وصلت إلى المرحلة $stageReached من $totalStages! 🚀"
         val sub = "نقاطي: $score"
-        renderAndSend(activity, title, sub, "تحدّني في لعبة تحدي الصغار!")
+        renderAndSend(activity, title, sub, "تحدّني في لعبة تحدي المعلومات!")
     }
 
     fun share(activity: Activity, score: Int, total: Int, ageLabel: String) {
         val title = if (score >= total) "أنهيت كل المراحل! 🏆" else "نتيجتي: $score / $total"
-        renderAndSend(activity, title, "الفئة: $ageLabel", "هل تستطيع التغلّب علي؟ 😄")
+        renderAndSend(activity, title, "المستوى: $ageLabel", "هل تستطيع التغلّب علي؟ 😄")
     }
 
     private fun renderAndSend(activity: Activity, line1: String, line2: String, line3: String) {
@@ -67,7 +67,7 @@ object ShareCard {
         p.color = Color.parseColor("#FFE082")
         p.textSize = 96f
         p.isFakeBoldText = true
-        c.drawText("تحدي الصغار", size / 2f, 470f, p)
+        c.drawText("تحدي المعلومات", size / 2f, 470f, p)
 
         // السطر الأول (العنوان الرئيسي)
         p.color = Color.WHITE
@@ -97,8 +97,8 @@ object ShareCard {
             val uri = FileProvider.getUriForFile(
                 activity, "${activity.packageName}.fileprovider", file
             )
-            val text = "🌟 $line1 في لعبة (تحدي الصغار)!\n" +
-                "$line3\n$PLAY_LINK\n#تحدي_الصغار #ألعاب_أطفال #تعليم"
+            val text = "🌟 $line1 في لعبة (تحدي المعلومات)!\n" +
+                "$line3\n$PLAY_LINK\n#تحدي_المعلومات #مسابقات #معلومات_عامة"
 
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "image/png"

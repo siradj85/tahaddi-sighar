@@ -70,7 +70,7 @@ object ReminderManager {
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("تحدّي الصغار 🌟")
+            .setContentTitle("تحدّي المعلومات 🌟")
             .setContentText("تحدّيك اليومي بانتظارك! العب واكسب النقاط وحافظ على سلسلتك 🔥")
             .setAutoCancel(true)
             .setContentIntent(pending)
