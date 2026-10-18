@@ -73,6 +73,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppRoot(vm: GameViewModel = viewModel()) {
+    // حشوة أشرطة النظام (الحالة/التنقل): تمنع تداخل الأزرار مع الشريط العلوي على أندرويد 15+
+    Box(Modifier.fillMaxSize().background(bg()).systemBarsPadding()) {
     AnimatedContent(targetState = vm.screen, label = "screen") { screen ->
         when (screen) {
             Screen.SPLASH -> SplashScreen(vm)
@@ -90,6 +92,7 @@ fun AppRoot(vm: GameViewModel = viewModel()) {
             Screen.FAMILY_RESULT -> FamilyResultScreen(vm)
             Screen.SETTINGS -> SettingsScreen(vm)
         }
+    }
     }
 }
 
