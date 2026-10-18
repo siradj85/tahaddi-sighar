@@ -134,6 +134,7 @@ private fun BigButton(text: String, container: Color = Gold, textColor: Color = 
 
 @Composable
 private fun MusicToggle(vm: GameViewModel) {
+    if (!SoundManager.hasMusic) return
     IconButton(onClick = { SoundManager.toggleMusic() }) {
         Icon(
             if (SoundManager.musicOn) Icons.Default.MusicNote else Icons.Default.MusicOff,
@@ -384,8 +385,10 @@ fun SettingsScreen(vm: GameViewModel) {
             Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0x22FFFFFF)), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(8.dp)) {
                     SettingSwitchRow("المؤثرات الصوتية", Icons.Default.VolumeUp, vm.soundOn) { vm.toggleSound() }
-                    SettingSwitchRow("الموسيقى الخلفية", Icons.Default.MusicNote, music) {
-                        SoundManager.toggleMusic(); music = SoundManager.musicOn
+                    if (SoundManager.hasMusic) {
+                        SettingSwitchRow("الموسيقى الخلفية", Icons.Default.MusicNote, music) {
+                            SoundManager.toggleMusic(); music = SoundManager.musicOn
+                        }
                     }
                 }
             }

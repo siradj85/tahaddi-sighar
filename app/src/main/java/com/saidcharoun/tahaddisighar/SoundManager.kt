@@ -27,6 +27,9 @@ object SoundManager {
     var enabled: Boolean = true
     var musicOn: Boolean = false
 
+    /** هل يوجد ملف موسيقى حقيقي؟ (لا نستخدم موسيقى مولّدة برمجياً) */
+    val hasMusic: Boolean get() = musicResId != 0
+
     private const val SR = 44100
     private val exec = Executors.newSingleThreadExecutor()
     private var vibrator: Vibrator? = null
@@ -108,8 +111,6 @@ object SoundManager {
                 }
             } catch (_: Exception) {
             }
-        } else {
-            startGeneratedMusic()
         }
     }
 

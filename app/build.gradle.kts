@@ -12,8 +12,8 @@ android {
         applicationId = "com.saidcharoun.tahaddisighar"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "8.1"
+        versionCode = 11
+        versionName = "8.2"
         vectorDrawables { useSupportLibrary = true }
     }
 
